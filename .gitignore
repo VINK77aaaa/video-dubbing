@@ -1,0 +1,22 @@
+# 运行产物
+final-out/
+test-out/
+out/
+work/
+cache/
+*.pcm
+*.wav
+*.mkv
+*.mp4
+*.srt
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 密钥：绝不允许提交
+.env
+*.key
+secrets*
