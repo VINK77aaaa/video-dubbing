@@ -40,6 +40,7 @@ out/
 ├── in.zh-dub.mkv        视频流直拷 + AAC 配音 + 软字幕
 ├── in.zh-dub.mp4        H.264 通用版（自动挑硬件编码器）
 ├── 配音字幕.srt          与配音严格对齐
+├── timeline.json        每句块的落点、倍速、顺延量
 └── report.json          质检报告
 ```
 

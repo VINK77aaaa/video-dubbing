@@ -59,7 +59,19 @@ def rows_to_cues(timeline, splitter, wrapper=None, min_dur=0.6):
         if k + 1 < len(out) and b > out[k + 1][0]:
             b = max(a + 0.3, out[k + 1][0] - 0.01)
         fixed.append((a, b, c))
-    return fixed
+    return merge_orphans(fixed)
+
+
+def merge_orphans(rows, min_chars=3):
+    """把只有一两个字的碎片条并回上一条，避免闪一下就消失的孤儿字幕。"""
+    out = []
+    for r in rows:
+        if out and len(r[2].replace("\n", "").strip()) < min_chars:
+            a, _, prev = out[-1]
+            out[-1] = (a, r[1], prev + r[2])
+        else:
+            out.append(r)
+    return out
 
 
 def stats(timeline):

@@ -268,6 +268,9 @@ def cmd_run(args):
         lambda t: subkit.split_for_display(t, args.cue_width, args.cue_hard_max),
         lambda t: subkit.wrap(t, args.line_width))
     subkit.write_srt(rows, srt_path)
+    with open(os.path.join(out_dir, "timeline.json"), "w", encoding="utf-8") as f:
+        json.dump([{k: (round(v, 3) if isinstance(v, float) else v)
+                    for k, v in r.items()} for r in timeline], f, ensure_ascii=False, indent=1)
     log("  %d 条 → %s" % (len(rows), srt_path))
 
     log("\n[5/5] 封装")
@@ -278,11 +281,13 @@ def cmd_run(args):
         out = os.path.join(out_dir, "%s.zh-dub.%s" % (base, c))
         if c == "mp4" and args.subs_mode == "burn":
             tmp = os.path.join(work, "tmp_sub.mp4")
-            media.mux(args.video, dub_wav, tmp, container="mp4", audio_bitrate=args.audio_bitrate)
+            media.mux(args.video, dub_wav, tmp, container="mp4",
+                      audio_bitrate=args.audio_bitrate, duration=total_dur)
             media.burn_subtitles(tmp, srt_path, out, font=args.font, font_size=args.font_size)
         else:
             media.mux(args.video, dub_wav, out, container=c, audio_bitrate=args.audio_bitrate,
-                      subtitle=srt_path if args.subs_mode != "none" else None)
+                      subtitle=srt_path if args.subs_mode != "none" else None,
+                      duration=total_dur)
         outputs.append(out)
         log("  %s  %.1f MB" % (out, os.path.getsize(out) / 1048576))
 
@@ -307,12 +312,11 @@ def cmd_run(args):
         json.dump(report, f, ensure_ascii=False, indent=2)
 
     if not args.keep_temp:
-        # 清理失败不应影响成片交付
-        for path in (os.path.join(work, "pcm"), os.path.join(work, "trim")):
-            try:
-                shutil.rmtree(path, ignore_errors=True)
-            except Exception:
-                pass
+        # 只清理大文件；trim 目录很小且便于复跑/排查，保留
+        try:
+            shutil.rmtree(os.path.join(work, "pcm"), ignore_errors=True)
+        except Exception:
+            pass
         try:
             if os.path.exists(track):
                 os.remove(track)
@@ -364,7 +368,7 @@ def build_parser():
             sp.add_argument("--subs-mode", choices=["soft", "burn", "none"], default="soft")
             sp.add_argument("--cue-width", type=float, default=18.0)
             sp.add_argument("--cue-hard-max", type=float, default=26.0)
-            sp.add_argument("--line-width", type=float, default=17.0)
+            sp.add_argument("--line-width", type=float, default=22.0)
             sp.add_argument("--font", default="Microsoft YaHei")
             sp.add_argument("--font-size", type=int, default=18)
             sp.add_argument("--audio-bitrate", default="192k")

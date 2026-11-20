@@ -138,6 +138,7 @@ def merge_blocks(cues, max_chars=45, gap=0.5):
 TOKEN_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9'’\-\.]*|\s+|.", re.S)
 LATIN_RE = re.compile(r"[A-Za-z0-9]")
 SOFT_BREAK = "的了是吧呢吗啊嘛呀就都也还又和与或但而且并以及"
+WORD_START = "其这那我你他她它再又而但所为因把被让给对从到和与或及就还也都是在把"
 
 
 def tokenize(t):
@@ -148,6 +149,7 @@ def group_tokens(tokens):
     """把连续的英文词（含中间空格）合并成不可分割的单元。
 
     否则 "Color Boost" 会被空格拆开，跨两条字幕显示。
+    保留英文后的空格，使 "Color Boost 是" 而不是 "Color Boost是"。
     """
     out, buf = [], ""
     for tk in tokens:
@@ -155,11 +157,11 @@ def group_tokens(tokens):
             buf += tk
         else:
             if buf:
-                out.append(buf.rstrip())
+                out.append(buf)
                 buf = ""
             out.append(tk)
     if buf:
-        out.append(buf.rstrip())
+        out.append(buf)
     return [x for x in out if x]
 
 
@@ -172,11 +174,29 @@ def width_of(t):
 
 
 def _soft_cut(buf):
-    """无标点可断时，回退到最近的虚词之后，避免断在词中间。"""
-    for k in range(len(buf) - 1, max(len(buf) - 7, 0), -1):
+    """无标点可断时，回退到虚词之后或实词之前，避免断在词中间。"""
+    for k in range(len(buf) - 1, max(len(buf) - 9, -1), -1):
         if buf[k] in SOFT_BREAK:
             return k + 1
+        if buf[k] in WORD_START:
+            return k
     return -1
+
+
+def _refine_cut(buf, sc, target, hard_max=26.0):
+    """断点后若只剩一两个字（如「…简单的 / 事，我就…」），
+    优先回退到上一个断点；退无可退就把这点尾巴一起吞进本条。"""
+    while sc > 0:
+        if width_of(buf[sc:]) > 2.0 or width_of(buf[:sc]) < target * 0.40:
+            break
+        nxt = _soft_cut(buf[:sc])
+        if 0 < nxt < sc:
+            sc = nxt
+            continue
+        if width_of(buf) <= hard_max:
+            return len(buf)
+        break
+    return sc
 
 
 def split_for_display(text, target=18.0, hard_max=26.0):
@@ -193,6 +213,7 @@ def split_for_display(text, target=18.0, hard_max=26.0):
             else:
                 sc = _soft_cut(buf)
                 if sc > 0 and width_of(buf[:sc]) >= target * 0.45:
+                    sc = _refine_cut(buf, sc, target)
                     cues.append(buf[:sc])
                     buf = buf[sc:]
                 else:
@@ -208,7 +229,9 @@ def split_for_display(text, target=18.0, hard_max=26.0):
         cues.append(buf)
     out = []
     for c in cues:
-        c = c.strip(" ，、,；;：:\n")
+        c = c.strip()
+        c = c.strip("，、,；;：:")
+        c = re.sub(r"^\s+|\s+$", "", c)
         if c:
             out.append(c)
     return out

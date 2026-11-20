@@ -38,9 +38,12 @@ def test_no_orphan_latin_letter():
 
 
 def test_soft_break():
-    cues = subs.split_for_display("在 Resolve 里以及其他饱和度技术我们再看看")
-    check("无标点时优先断在虚词后", any(c.endswith(("的", "了", "是", "在", "和", "与", "就", "都")) for c in cues),
-          "|".join(cues))
+    text = "在 Resolve 里以及其他饱和度技术我们再看看"
+    cues = subs.split_for_display(text)
+    ok = all(c[-1] in subs.SOFT_BREAK or cues[i + 1][0] in subs.WORD_START
+             for i, c in enumerate(cues[:-1]))
+    check("断点落在词边界", ok, "|".join(cues))
+    check("不断在「其」后面", not any(c.endswith("其") for c in cues), "|".join(cues))
 
 
 def test_width_limit():
@@ -71,6 +74,22 @@ def test_normalize():
           subs.normalize("他就说：，“发生了什么？”"))
 
 
+def test_no_orphan_tail():
+    text = "所以我们会先，做一件非常非常简单的事，我就直接到这里"
+    cues = subs.split_for_display(text)
+    check("不以单字开头成条", not any(len(c) <= 2 and k > 0 for k, c in enumerate(cues)),
+          "|".join(cues))
+    check("「简单的事」不被劈开", not any(c.endswith("简单的事") and c == text for c in cues) and
+          not any(c.startswith("事，") for c in cues), "|".join(cues))
+
+
+def test_merge_orphans():
+    from dubkit import plan
+    rows = [(0.0, 2.0, "完整的一句话"), (2.0, 2.3, "哦"), (2.3, 4.0, "下一句")]
+    merged = plan.merge_orphans(rows)
+    check("孤儿条并入上一条", len(merged) == 2 and merged[0][2] == "完整的一句话哦", str(merged))
+
+
 def test_cache_key_sensitivity():
     from dubkit import mimo
     a = mimo.cache_key("测试文本", "苏打", "风格A", "mimo-v2.5-tts")
@@ -87,9 +106,10 @@ def test_parse_vtt():
 
 
 if __name__ == "__main__":
-    for fn in [test_no_split_latin_phrase, test_soft_break, test_width_limit,
-               test_wrap, test_merge_blocks, test_normalize, test_cache_key_sensitivity,
-               test_parse_vtt, test_no_orphan_latin_letter]:
+    for fn in [test_no_split_latin_phrase, test_soft_break, test_no_orphan_tail,
+               test_merge_orphans, test_width_limit, test_wrap, test_merge_blocks,
+               test_normalize, test_cache_key_sensitivity, test_parse_vtt,
+               test_no_orphan_latin_letter]:
         print(fn.__name__)
         fn()
     print("\n失败 %d 项" % len(FAIL))

@@ -105,8 +105,11 @@ def loudnorm(in_pcm, out_wav, sr, ch, target_i=-16.0, target_tp=-1.5, target_lra
 
 
 def mux(video, audio, out, container="mkv", video_bitrate=None, audio_bitrate="192k",
-        subtitle=None, faststart=True, extra_video_args=None):
-    """封装：MKV 直拷视频流；MP4 用 QSV/NVENC/libx264 转 H.264。"""
+        subtitle=None, faststart=True, duration=None, extra_video_args=None):
+    """封装：MKV 直拷视频流；MP4 用 QSV/NVENC/libx264 转 H.264。
+
+    duration 用于把音轨裁到与视频等长（配音轨尾部常多补半秒静音）。
+    """
     cmd = ["ffmpeg", "-y", "-v", "error", "-i", video, "-i", audio]
     maps = ["-map", "0:v:0", "-map", "1:a:0"]
     if subtitle:
@@ -126,6 +129,8 @@ def mux(video, audio, out, container="mkv", video_bitrate=None, audio_bitrate="1
                     "-metadata:s:s:0", "title=中文配音字幕"]
         if faststart:
             cmd += ["-movflags", "+faststart"]
+    if duration:
+        cmd += ["-t", "%.3f" % duration]
     cmd += [out]
     run(cmd)
     return out

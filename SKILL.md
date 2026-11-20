@@ -49,7 +49,7 @@ python scripts/dub.py run \
   --voice 苏打 --container both --subs-mode soft
 ```
 
-产物在 `--out-dir`：`*.zh-dub.mkv`、`*.zh-dub.mp4`、`配音字幕.srt`、`report.json`。
+产物在 `--out-dir`：`*.zh-dub.mkv`、`*.zh-dub.mp4`、`配音字幕.srt`、`timeline.json`、`report.json`。
 
 ## 关键参数
 
